@@ -1,0 +1,9 @@
+[package]
+name = "tanu-allure-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tanu-allure = { path = ".." }
+tanu = "0.7.1"
+tokio = { version = "1", features = ["full"] }
