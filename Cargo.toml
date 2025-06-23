@@ -2,6 +2,12 @@
 name = "tanu-allure"
 version = "0.1.0"
 edition = "2021"
+description = "Allure integration for Tanu"
+homepage = "https://github.com/tanu-rs/tanu-allure"
+repository = "https://github.com/tanu-rs/tanu-allure"
+license = "Apache-2.0"
+keywords = ["webapi", "test", "http"]
+categories = ["development-tools"]
 
 [dependencies]
 async-trait = "0.1.0"
