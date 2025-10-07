@@ -1,4 +1,4 @@
-/target
+**/target
 Cargo.lock
 allure-report
 allure-reports
