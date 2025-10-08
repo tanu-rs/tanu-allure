@@ -4,6 +4,8 @@
 
 An Allure reporter plugin for [tanu](https://github.com/tanu-rs/tanu) that emits Allure-compatible JSON for every executed test. The reporter implements `tanu_core::Reporter` and stores results in a directory you control, ready to be rendered with the Allure CLI.
 
+![](screenshot.png)
+
 ## Installation
 
 Add the crate to your workspace alongside `tanu`:
