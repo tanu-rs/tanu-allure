@@ -16,7 +16,5 @@ async fn main() -> tanu::eyre::Result<()> {
         "allure",
         tanu_allure::AllureReporter::with_results_dir("allure-results"),
     );
-    app.run(runner).await?;
-
-    Ok(())
+    app.run(runner).await
 }
