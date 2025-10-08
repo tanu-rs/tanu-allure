@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip
 
-ENV VERSION=2.34.0
+ENV VERSION=2.35.1
 
 RUN curl -o allure-commandline.zip -L https://github.com/allure-framework/allure2/releases/download/$VERSION/allure-$VERSION.zip \
     && unzip allure-commandline.zip -d /opt/ \
