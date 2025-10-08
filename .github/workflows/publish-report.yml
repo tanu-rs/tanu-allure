@@ -1,0 +1,67 @@
+name: publish-report
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish-report
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Java runtime for Allure CLI
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Clean previous Allure artifacts
+        run: rm -rf example/allure-results example/allure-report
+
+      - name: Run example suite and capture Allure results
+        run: cargo run --manifest-path example/Cargo.toml -- test --reporters allure,list
+
+      - name: Install Allure CLI
+        run: |
+          ALLURE_VERSION=2.35.1
+          curl -sSL -o allure-commandline.zip https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.zip
+          unzip -q allure-commandline.zip
+          echo "${PWD}/allure-${ALLURE_VERSION}/bin" >> $GITHUB_PATH
+
+      - name: Generate Allure report
+        run: |
+          allure --version
+          allure generate allure-results --clean -o allure-report
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload report artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: allure-report
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

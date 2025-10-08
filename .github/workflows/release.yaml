@@ -13,7 +13,7 @@ jobs:
     name: release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: publish tanu-allure to crates.io

@@ -1,10 +1,10 @@
-use tanu::assert;
-
-#[tanu::test]
-async fn foo() -> tanu::eyre::Result<()> {
-    let http = tanu::http::Client::new();
-    assert!(http.get("https://httpbin.org/get").send().await.is_ok());
-    Ok(())
+mod tests {
+    #[tanu::test]
+    async fn http_get() -> tanu::eyre::Result<()> {
+        let http = tanu::http::Client::new();
+        tanu::check!(http.get("https://httpbin.org/get").send().await.is_ok());
+        Ok(())
+    }
 }
 
 #[tanu::main]
