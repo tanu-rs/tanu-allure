@@ -1,0 +1,41 @@
+diff --git a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -7,6 +7,9 @@ members = [
+   "tanu-integration-tests",
+   "examples",
+ ]
+ resolver = "2"
+ 
++[patch.crates-io]
++tanu-core = { path = "tanu-core" }
++
+ [workspace.dependencies]
+diff --git a/tanu-integration-tests/Cargo.toml b/tanu-integration-tests/Cargo.toml
+--- a/tanu-integration-tests/Cargo.toml
++++ b/tanu-integration-tests/Cargo.toml
+@@ -20,6 +20,7 @@ prost = "0.14.1"
+ serde = { workspace = true }
+ serde_json = "1"
+ tanu = { path = "../tanu", features = ["json", "cookies"] }
++tanu-allure = { path = "../.." }
+ testcontainers = "0.24"
+ tokio = { workspace = true }
+ tokio-stream = { version = "0.1", features = ["net"] }
+diff --git a/tanu-integration-tests/src/main.rs b/tanu-integration-tests/src/main.rs
+--- a/tanu-integration-tests/src/main.rs
++++ b/tanu-integration-tests/src/main.rs
+@@ -65,8 +65,12 @@ pub async fn get_httpbin() -> eyre::Result<Arc<HttpBin>> {
+ #[tanu::main]
+ #[tokio::main]
+ async fn main() -> eyre::Result<()> {
+     let runner = run();
+-    let app = tanu::App::new();
++    let mut app = tanu::App::new();
++    app.install_reporter(
++        "allure",
++        tanu_allure::AllureReporter::with_results_dir("allure-results"),
++    );
+     app.run(runner).await?;
+     Ok(())
+ }

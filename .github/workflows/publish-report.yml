@@ -17,8 +17,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout tanu-allure
         uses: actions/checkout@v5
+
+      - name: Checkout tanu
+        uses: actions/checkout@v5
+        with:
+          repository: tanu-rs/tanu
+          path: tanu
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -30,10 +36,15 @@ jobs:
           java-version: '17'
 
       - name: Clean previous Allure artifacts
-        run: rm -rf example/allure-results example/allure-report
+        run: rm -rf tanu/allure-results allure-report
 
-      - name: Run example suite and capture Allure results
-        run: cargo run --manifest-path example/Cargo.toml -- test --reporters allure,list
+      - name: Patch tanu integration runner to install Allure reporter
+        working-directory: tanu
+        run: git apply ../.github/patches/tanu-integration-allure.patch
+
+      - name: Run tanu integration suite and capture Allure results
+        working-directory: tanu
+        run: cargo run -p tanu-integration-tests -- test --reporters allure,list
 
       - name: Install Allure CLI
         run: |
@@ -45,7 +56,7 @@ jobs:
       - name: Generate Allure report
         run: |
           allure --version
-          allure generate allure-results --clean -o allure-report
+          allure generate tanu/allure-results --clean -o allure-report
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
