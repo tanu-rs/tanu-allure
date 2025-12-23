@@ -7,7 +7,9 @@ use tanu_core::{
     ModuleName, ProjectName, Reporter, TestName,
 };
 
-use crate::models::{Label, Parameter, Stage, Status, StatusDetails, Step, TestResult};
+use crate::models::{
+    Label, Parameter, ParameterMode, Stage, Status, StatusDetails, Step, TestResult,
+};
 
 fn to_status(status: http::StatusCode) -> Status {
     if status.is_success() {
@@ -16,6 +18,52 @@ fn to_status(status: http::StatusCode) -> Status {
         Status::Failed
     } else {
         Status::Broken
+    }
+}
+
+fn to_test_status(test: &Test) -> Status {
+    match &test.result {
+        Ok(_) => Status::Passed,
+        Err(runner::Error::ErrorReturned(_)) => Status::Failed,
+        Err(runner::Error::Panicked(_)) => Status::Broken,
+    }
+}
+
+fn system_time_to_unix_millis(time: std::time::SystemTime) -> i64 {
+    time.duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
+fn push_header_parameters(
+    parameters: &mut Vec<Parameter>,
+    prefix: &str,
+    headers: &http::header::HeaderMap,
+) {
+    for (name, value) in headers.iter() {
+        let header_name = name.as_str();
+        let is_sensitive = matches!(
+            header_name,
+            "authorization"
+                | "proxy-authorization"
+                | "cookie"
+                | "set-cookie"
+                | "x-api-key"
+                | "x-auth-token"
+        );
+
+        let (value, mode) = if is_sensitive {
+            ("<masked>".to_string(), Some(ParameterMode::Masked))
+        } else {
+            (String::from_utf8_lossy(value.as_bytes()).into_owned(), None)
+        };
+
+        parameters.push(Parameter {
+            name: format!("{prefix}.{header_name}"),
+            value,
+            excluded: None,
+            mode,
+        });
     }
 }
 
@@ -49,13 +97,22 @@ impl From<&Event> for Step {
             },
             Event::Http(log) => Step {
                 name: log.request.url.to_string(),
-                parameters: Default::default(),
+                parameters: {
+                    let mut parameters = Vec::new();
+                    push_header_parameters(&mut parameters, "request.header", &log.request.headers);
+                    push_header_parameters(
+                        &mut parameters,
+                        "response.header",
+                        &log.response.headers,
+                    );
+                    parameters
+                },
                 attachments: Default::default(),
                 status: to_status(log.response.status),
                 status_details: Default::default(),
                 stage: Some(Stage::Finished),
-                start: Default::default(),
-                stop: Default::default(),
+                start: Some(system_time_to_unix_millis(log.started_at)),
+                stop: Some(system_time_to_unix_millis(log.ended_at)),
                 steps: vec![],
             },
         }
@@ -104,16 +161,7 @@ impl AllureReporter {
         events: &[Event],
         test: &Test,
     ) -> TestResult {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as i64;
-
-        let status = if test.result.is_ok() {
-            Status::Passed
-        } else {
-            Status::Failed
-        };
+        let status = to_test_status(test);
 
         let status_details = if let Err(e) = &test.result {
             Some(StatusDetails {
@@ -152,8 +200,8 @@ impl AllureReporter {
             status,
             status_details,
             stage: Some(Stage::Finished),
-            start: Some(now - 1000),
-            stop: Some(now),
+            start: Some(system_time_to_unix_millis(test.started_at)),
+            stop: Some(system_time_to_unix_millis(test.ended_at)),
             steps,
         }
     }
