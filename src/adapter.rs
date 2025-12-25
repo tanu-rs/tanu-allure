@@ -80,20 +80,23 @@ enum Event {
 impl From<&Event> for Step {
     fn from(event: &Event) -> Self {
         match event {
-            Event::Check(check) => Step {
-                name: strip_ansi_escapes::strip_str(&check.expr),
-                parameters: Default::default(),
-                attachments: Default::default(),
-                status: if check.result {
-                    Status::Passed
-                } else {
-                    Status::Failed
-                },
-                status_details: Default::default(),
-                stage: Some(Stage::Finished),
-                start: Default::default(),
-                stop: Default::default(),
-                steps: vec![],
+            Event::Check(check) => {
+                let now = system_time_to_unix_millis(std::time::SystemTime::now());
+                Step {
+                    name: strip_ansi_escapes::strip_str(&check.expr),
+                    parameters: Default::default(),
+                    attachments: Default::default(),
+                    status: if check.result {
+                        Status::Passed
+                    } else {
+                        Status::Failed
+                    },
+                    status_details: Default::default(),
+                    stage: Some(Stage::Finished),
+                    start: Some(now),
+                    stop: Some(now),
+                    steps: vec![],
+                }
             },
             Event::Http(log) => Step {
                 name: log.request.url.to_string(),
