@@ -45,6 +45,8 @@ jobs:
       - name: Run tanu integration suite and capture Allure results
         working-directory: tanu
         run: cargo run -p tanu-integration-tests -- test --reporters allure,list
+        env:
+          TANU_CONFIG: ./tanu-integration-tests/tanu.toml
 
       - name: Install Allure CLI
         run: |
