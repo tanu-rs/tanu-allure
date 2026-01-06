@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "tanu-allure"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "Allure integration for Tanu"
 homepage = "https://github.com/tanu-rs/tanu-allure"
