@@ -48,6 +48,7 @@ jobs:
         continue-on-error: true
         env:
           TANU_CONFIG: ../tanu.toml
+          RUST_BACKTRACE: full
 
       - name: Install Allure CLI
         run: |
