@@ -12,7 +12,7 @@ Add the crate to your workspace alongside `tanu`:
 
 ```toml
 [dependencies]
-tanu-allure = "0.4"
+tanu-allure = "0.5"
 ```
 
 ## Usage
