@@ -155,19 +155,7 @@ impl AllureReporter {
     pub fn with_results_dir(results_dir: impl Into<String>) -> Self {
         let results_dir = results_dir.into();
         let history = Self::load_history(&results_dir);
-
-        // Initialize environment with preset values
-        let mut environment = HashMap::new();
-        environment.insert("os_platform".to_string(), std::env::consts::OS.to_string());
-        environment.insert("os_arch".to_string(), std::env::consts::ARCH.to_string());
-        environment.insert("tanu_allure_version".to_string(), env!("CARGO_PKG_VERSION").to_string());
-
-        // Load TANU_ALLURE_* environment variables
-        for (key, value) in std::env::vars() {
-            if let Some(stripped_key) = key.strip_prefix("TANU_ALLURE_") {
-                environment.insert(stripped_key.to_string(), value);
-            }
-        }
+        let environment = Self::load_default_environment();
 
         AllureReporter {
             results_dir,
@@ -176,6 +164,28 @@ impl AllureReporter {
             current_run_results: Vec::new(),
             environment,
         }
+    }
+
+    /// Loads default environment variables including preset values and TANU_ALLURE_* variables
+    fn load_default_environment() -> HashMap<String, String> {
+        let mut environment = HashMap::new();
+
+        // Add preset environment values
+        environment.insert("os_platform".to_string(), std::env::consts::OS.to_string());
+        environment.insert("os_arch".to_string(), std::env::consts::ARCH.to_string());
+        environment.insert(
+            "tanu_allure_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
+
+        // Load TANU_ALLURE_* environment variables with prefix stripped
+        for (key, value) in std::env::vars() {
+            if let Some(stripped_key) = key.strip_prefix("TANU_ALLURE_") {
+                environment.insert(stripped_key.to_string(), value);
+            }
+        }
+
+        environment
     }
 
     /// Adds a single environment variable to be included in the environment.properties file.
