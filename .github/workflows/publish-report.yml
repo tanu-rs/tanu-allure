@@ -43,6 +43,19 @@ jobs:
       - name: Clean previous Allure artifacts
         run: rm -rf tanu/allure-results allure-report
 
+      - name: Download previous Allure history
+        run: |
+          mkdir -p tanu/allure-results/history
+          # Try to fetch history from the published v2 report
+          curl -sSfL "https://tanu-rs.github.io/tanu-allure/v2/history/history.json" \
+            -o tanu/allure-results/history/history.json || echo "No previous history found (first run or site not deployed)"
+          # Also fetch other history-related files if they exist
+          for file in history-trend.json categories-trend.json duration-trend.json retry-trend.json; do
+            curl -sSfL "https://tanu-rs.github.io/tanu-allure/v2/history/${file}" \
+              -o "tanu/allure-results/history/${file}" 2>/dev/null || true
+          done
+          ls -la tanu/allure-results/history/ || true
+
       - name: Patch tanu integration runner to install Allure reporter
         working-directory: tanu
         run: git apply ../.github/patches/tanu-integration-allure.patch
