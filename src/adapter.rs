@@ -155,21 +155,41 @@ impl AllureReporter {
     pub fn with_results_dir(results_dir: impl Into<String>) -> Self {
         let results_dir = results_dir.into();
         let history = Self::load_history(&results_dir);
+
+        // Initialize environment with preset values
+        let mut environment = HashMap::new();
+        environment.insert("os_platform".to_string(), std::env::consts::OS.to_string());
+        environment.insert("os_arch".to_string(), std::env::consts::ARCH.to_string());
+        environment.insert("tanu_allure_version".to_string(), env!("CARGO_PKG_VERSION").to_string());
+
+        // Load TANU_ALLURE_* environment variables
+        for (key, value) in std::env::vars() {
+            if let Some(stripped_key) = key.strip_prefix("TANU_ALLURE_") {
+                environment.insert(stripped_key.to_string(), value);
+            }
+        }
+
         AllureReporter {
             results_dir,
             buffer: IndexMap::new(),
             history,
             current_run_results: Vec::new(),
-            environment: HashMap::new(),
+            environment,
         }
     }
 
-    /// Adds a single environment variable to be included in the environment.properties file
+    /// Adds a single environment variable to be included in the environment.properties file.
+    ///
+    /// Note: The reporter automatically loads preset values (os_platform, os_arch, tanu_allure_version)
+    /// and TANU_ALLURE_* environment variables. Use this method to add additional custom values.
     pub fn add_environment(&mut self, key: impl Into<String>, value: impl Into<String>) {
         self.environment.insert(key.into(), value.into());
     }
 
-    /// Sets multiple environment variables at once
+    /// Sets multiple environment variables at once.
+    ///
+    /// Note: The reporter automatically loads preset values and TANU_ALLURE_* environment variables.
+    /// Use this method to add additional custom values.
     pub fn set_environment(&mut self, env: HashMap<String, String>) {
         self.environment.extend(env);
     }
@@ -177,10 +197,13 @@ impl AllureReporter {
     /// Loads environment variables from system environment with a specific prefix.
     /// Variables with the prefix will be added with the prefix stripped.
     ///
+    /// Note: The reporter automatically loads TANU_ALLURE_* variables on initialization.
+    /// Use this method only if you need to load additional prefixed variables.
+    ///
     /// # Example
     ///
-    /// If `TANU_ALLURE_BUILD_NUMBER=123` is set in the environment and you call
-    /// `load_from_env("TANU_ALLURE_")`, it will add `BUILD_NUMBER = 123` to the
+    /// If `MY_APP_VERSION=1.0.0` is set in the environment and you call
+    /// `load_from_env("MY_APP_")`, it will add `VERSION = 1.0.0` to the
     /// environment.properties file.
     pub fn load_from_env(&mut self, prefix: &str) {
         for (key, value) in std::env::vars() {
