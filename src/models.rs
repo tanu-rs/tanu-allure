@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -177,7 +178,7 @@ pub struct Attachment {
 }
 
 /// Represents the status of a test or step.
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Status {
     Failed,
@@ -249,6 +250,100 @@ pub struct Step {
     /// An array of sub-steps within this step.
     #[serde(default)]
     pub steps: Vec<Step>,
+}
+
+// ============================================================================
+// History types for tracking test execution history across runs
+// ============================================================================
+
+/// Statistics for a test's execution history
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HistoryStatistic {
+    pub failed: u32,
+    pub broken: u32,
+    pub skipped: u32,
+    pub passed: u32,
+    pub unknown: u32,
+    pub total: u32,
+}
+
+impl HistoryStatistic {
+    /// Updates statistics based on a test status
+    pub fn record(&mut self, status: &Status) {
+        match status {
+            Status::Failed => self.failed += 1,
+            Status::Broken => self.broken += 1,
+            Status::Skipped => self.skipped += 1,
+            Status::Passed => self.passed += 1,
+            Status::Unknown => self.unknown += 1,
+        }
+        self.total += 1;
+    }
+}
+
+/// Timing information for a history item
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryTime {
+    pub start: i64,
+    pub stop: i64,
+    pub duration: i64,
+}
+
+/// A single run entry in the history
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryItem {
+    pub uid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_url: Option<String>,
+    pub status: Status,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status_details: Option<String>,
+    pub time: HistoryTime,
+}
+
+/// History entry for a single test (identified by history_id)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HistoryEntry {
+    pub statistic: HistoryStatistic,
+    pub items: Vec<HistoryItem>,
+}
+
+/// Complete history.json structure (key = history_id)
+pub type History = HashMap<String, HistoryEntry>;
+
+/// Maximum number of history items to keep per test
+pub const MAX_HISTORY_ITEMS: usize = 20;
+
+/// Generates a deterministic history_id from test identity.
+///
+/// The history_id is a SHA-256 hash of:
+/// - project name
+/// - module name
+/// - test name
+/// - non-excluded parameter values (sorted by name for consistency)
+pub fn generate_history_id(
+    project: &str,
+    module: &str,
+    test_name: &str,
+    parameters: &[Parameter],
+) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{project}::{module}::{test_name}"));
+
+    // Include non-excluded parameters (sorted for determinism)
+    let mut params: Vec<_> = parameters
+        .iter()
+        .filter(|p| p.excluded != Some(true))
+        .map(|p| (&p.name, &p.value))
+        .collect();
+    params.sort_by_key(|(name, _)| *name);
+
+    for (name, value) in params {
+        hasher.update(format!("::{name}={value}"));
+    }
+
+    format!("{:x}", hasher.finalize())
 }
 
 impl TestResult {

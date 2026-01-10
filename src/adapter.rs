@@ -8,7 +8,8 @@ use tanu_core::{
 };
 
 use crate::models::{
-    Label, Parameter, ParameterMode, Stage, Status, StatusDetails, Step, TestResult,
+    generate_history_id, History, HistoryItem, HistoryTime, Label, Parameter, ParameterMode,
+    Stage, Status, StatusDetails, Step, TestResult, MAX_HISTORY_ITEMS,
 };
 
 fn to_status(status: http::StatusCode) -> Status {
@@ -70,6 +71,18 @@ fn push_header_parameters(
 pub struct AllureReporter {
     pub results_dir: String,
     buffer: IndexMap<(ProjectName, ModuleName, TestName), Buffer>,
+    history: History,
+    current_run_results: Vec<RunResult>,
+}
+
+/// Tracks a single test result for history update
+struct RunResult {
+    history_id: String,
+    status: Status,
+    status_details: Option<String>,
+    start: i64,
+    stop: i64,
+    uuid: String,
 }
 
 enum Event {
@@ -135,17 +148,30 @@ impl Default for AllureReporter {
 
 impl AllureReporter {
     pub fn new() -> Self {
-        AllureReporter {
-            results_dir: "allure-results".to_string(),
-            buffer: IndexMap::new(),
-        }
+        Self::with_results_dir("allure-results")
     }
 
     pub fn with_results_dir(results_dir: impl Into<String>) -> Self {
+        let results_dir = results_dir.into();
+        let history = Self::load_history(&results_dir);
         AllureReporter {
-            results_dir: results_dir.into(),
+            results_dir,
             buffer: IndexMap::new(),
+            history,
+            current_run_results: Vec::new(),
         }
+    }
+
+    /// Loads existing history.json from the history subdirectory
+    fn load_history(results_dir: &str) -> History {
+        let path = Path::new(results_dir).join("history").join("history.json");
+        if !path.exists() {
+            return History::new();
+        }
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
     }
 
     fn ensure_results_dir(&self) -> eyre::Result<()> {
@@ -180,12 +206,23 @@ impl AllureReporter {
 
         let steps: Vec<_> = events.iter().map(Step::from).collect();
 
+        // Create parameters first so we can use them for history_id generation
+        let parameters = vec![Parameter {
+            name: "Project".to_string(),
+            value: project.to_string(),
+            excluded: Some(true), // Exclude from history_id calculation
+            mode: Default::default(),
+        }];
+
+        // Generate deterministic history_id based on test identity
+        let history_id = generate_history_id(project, module, test_name, &parameters);
+
         TestResult {
             uuid: uuid::Uuid::new_v4(),
-            history_id: uuid::Uuid::new_v4().to_string(),
+            history_id,
             test_case_id: Default::default(),
             name: test_name.to_string(),
-            full_name: Default::default(),
+            full_name: Some(format!("{module}::{test_name}")),
             description: Default::default(),
             description_html: Default::default(),
             links: Default::default(),
@@ -193,12 +230,7 @@ impl AllureReporter {
                 Label::ParentSuite(project.to_string()),
                 Label::Suite(module.to_string()),
             ],
-            parameters: vec![Parameter {
-                name: "Project".to_string(),
-                value: project.to_string(),
-                excluded: Default::default(),
-                mode: Default::default(),
-            }],
+            parameters,
             attachments: Default::default(),
             status,
             status_details,
@@ -265,6 +297,65 @@ impl Reporter for AllureReporter {
         let json = serde_json::to_string_pretty(&test_result)?;
 
         fs::write(file_path, json)?;
+
+        // Track result for history update
+        self.current_run_results.push(RunResult {
+            history_id: test_result.history_id.clone(),
+            status: test_result.status.clone(),
+            status_details: test_result
+                .status_details
+                .as_ref()
+                .and_then(|d| d.message.clone()),
+            start: test_result.start.unwrap_or(0),
+            stop: test_result.stop.unwrap_or(0),
+            uuid: test_result.uuid.to_string(),
+        });
+
+        Ok(())
+    }
+
+    async fn on_summary(&mut self, _summary: runner::TestSummary) -> eyre::Result<()> {
+        self.write_history()?;
+        Ok(())
+    }
+}
+
+impl AllureReporter {
+    /// Writes updated history.json after all tests complete
+    fn write_history(&mut self) -> eyre::Result<()> {
+        for result in &self.current_run_results {
+            let entry = self.history.entry(result.history_id.clone()).or_default();
+
+            // Update statistics
+            entry.statistic.record(&result.status);
+
+            // Add new history item at the beginning
+            entry.items.insert(
+                0,
+                HistoryItem {
+                    uid: result.uuid.clone(),
+                    report_url: None,
+                    status: result.status.clone(),
+                    status_details: result.status_details.clone(),
+                    time: HistoryTime {
+                        start: result.start,
+                        stop: result.stop,
+                        duration: (result.stop - result.start) / 1000,
+                    },
+                },
+            );
+
+            // Trim to max items
+            entry.items.truncate(MAX_HISTORY_ITEMS);
+        }
+
+        // Ensure history directory exists
+        let history_dir = Path::new(&self.results_dir).join("history");
+        fs::create_dir_all(&history_dir)?;
+
+        // Write history.json
+        let json = serde_json::to_string_pretty(&self.history)?;
+        fs::write(history_dir.join("history.json"), json)?;
 
         Ok(())
     }
