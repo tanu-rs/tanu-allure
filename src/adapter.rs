@@ -174,6 +174,22 @@ impl AllureReporter {
         self.environment.extend(env);
     }
 
+    /// Loads environment variables from system environment with a specific prefix.
+    /// Variables with the prefix will be added with the prefix stripped.
+    ///
+    /// # Example
+    ///
+    /// If `TANU_ALLURE_BUILD_NUMBER=123` is set in the environment and you call
+    /// `load_from_env("TANU_ALLURE_")`, it will add `BUILD_NUMBER = 123` to the
+    /// environment.properties file.
+    pub fn load_from_env(&mut self, prefix: &str) {
+        for (key, value) in std::env::vars() {
+            if let Some(stripped_key) = key.strip_prefix(prefix) {
+                self.environment.insert(stripped_key.to_string(), value);
+            }
+        }
+    }
+
     /// Loads existing history.json from the history subdirectory
     fn load_history(results_dir: &str) -> History {
         let path = Path::new(results_dir).join("history").join("history.json");
