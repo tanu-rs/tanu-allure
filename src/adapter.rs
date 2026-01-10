@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde_json;
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 use tanu_core::{
     eyre, http,
     runner::{self, Test},
@@ -73,6 +73,7 @@ pub struct AllureReporter {
     buffer: IndexMap<(ProjectName, ModuleName, TestName), Buffer>,
     history: History,
     current_run_results: Vec<RunResult>,
+    environment: HashMap<String, String>,
 }
 
 /// Tracks a single test result for history update
@@ -159,7 +160,18 @@ impl AllureReporter {
             buffer: IndexMap::new(),
             history,
             current_run_results: Vec::new(),
+            environment: HashMap::new(),
         }
+    }
+
+    /// Adds a single environment variable to be included in the environment.properties file
+    pub fn add_environment(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.environment.insert(key.into(), value.into());
+    }
+
+    /// Sets multiple environment variables at once
+    pub fn set_environment(&mut self, env: HashMap<String, String>) {
+        self.environment.extend(env);
     }
 
     /// Loads existing history.json from the history subdirectory
@@ -316,6 +328,7 @@ impl Reporter for AllureReporter {
 
     async fn on_summary(&mut self, _summary: runner::TestSummary) -> eyre::Result<()> {
         self.write_history()?;
+        self.write_environment()?;
         Ok(())
     }
 }
@@ -356,6 +369,37 @@ impl AllureReporter {
         // Write history.json
         let json = serde_json::to_string_pretty(&self.history)?;
         fs::write(history_dir.join("history.json"), json)?;
+
+        Ok(())
+    }
+
+    /// Writes environment.properties file with environment variables
+    fn write_environment(&self) -> eyre::Result<()> {
+        if self.environment.is_empty() {
+            return Ok(());
+        }
+
+        // Ensure results directory exists
+        self.ensure_results_dir()?;
+
+        // Build properties file content
+        let mut lines: Vec<String> = self
+            .environment
+            .iter()
+            .map(|(key, value)| {
+                // Escape special characters for Java properties format
+                let escaped_key = key.replace('\\', "\\\\").replace('=', "\\=").replace(':', "\\:");
+                let escaped_value = value.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r");
+                format!("{} = {}", escaped_key, escaped_value)
+            })
+            .collect();
+
+        // Sort for deterministic output
+        lines.sort();
+
+        // Write environment.properties file
+        let file_path = Path::new(&self.results_dir).join("environment.properties");
+        fs::write(file_path, lines.join("\n"))?;
 
         Ok(())
     }

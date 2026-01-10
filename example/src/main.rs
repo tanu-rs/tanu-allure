@@ -12,9 +12,13 @@ mod tests {
 async fn main() -> tanu::eyre::Result<()> {
     let runner = run();
     let mut app = tanu::App::new();
-    app.install_reporter(
-        "allure",
-        tanu_allure::AllureReporter::with_results_dir("allure-results"),
-    );
+
+    // Create Allure reporter with environment information
+    let mut reporter = tanu_allure::AllureReporter::with_results_dir("allure-results");
+    reporter.add_environment("os_platform", std::env::consts::OS);
+    reporter.add_environment("os_arch", std::env::consts::ARCH);
+    reporter.add_environment("tanu_allure_version", env!("CARGO_PKG_VERSION"));
+
+    app.install_reporter("allure", reporter);
     app.run(runner).await
 }
