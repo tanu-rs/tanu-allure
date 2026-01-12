@@ -68,6 +68,27 @@ Rust implementation: `src/models.rs`
 - [Executor](https://allurereport.org/docs/how-it-works-executor-file/)
 - [History](https://allurereport.org/docs/how-it-works-history-files/)
 
+## Versioning
+
+Update version in two places:
+
+1. `Cargo.toml` - the `version` field
+2. `README.md` - the version in the Installation section
+
+```bash
+# Example: bumping from 0.5.1 to 0.6.0
+# Cargo.toml:  version = "0.5.1"  →  version = "0.6.0"
+# README.md:   tanu-allure = "0.5"  →  tanu-allure = "0.6"
+```
+
+The example uses a path dependency (`path = ".."`), so no version update is needed there.
+
+To release:
+1. Update versions in `Cargo.toml` and `README.md`
+2. Commit and push to main
+3. Create a GitHub release with a tag matching the version (e.g., `v0.6.0`)
+4. The `release.yaml` workflow automatically publishes to crates.io
+
 ## CI Workflows
 
 - **test.yml** - Runs on PRs and pushes: build, clippy, nextest
