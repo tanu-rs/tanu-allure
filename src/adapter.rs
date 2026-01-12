@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde_json;
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 use tanu_core::{
     eyre, http,
     runner::{self, Test},
@@ -73,6 +73,7 @@ pub struct AllureReporter {
     buffer: IndexMap<(ProjectName, ModuleName, TestName), Buffer>,
     history: History,
     current_run_results: Vec<RunResult>,
+    environment: HashMap<String, String>,
 }
 
 /// Tracks a single test result for history update
@@ -154,12 +155,74 @@ impl AllureReporter {
     pub fn with_results_dir(results_dir: impl Into<String>) -> Self {
         let results_dir = results_dir.into();
         let history = Self::load_history(&results_dir);
+        let environment = Self::initialize_environment();
+
         AllureReporter {
             results_dir,
             buffer: IndexMap::new(),
             history,
             current_run_results: Vec::new(),
+            environment,
         }
+    }
+
+    /// Initializes environment variables by loading preset values and TANU_ALLURE_* variables
+    fn initialize_environment() -> HashMap<String, String> {
+        let mut environment = Self::load_default_environment();
+        Self::load_env_with_prefix(&mut environment, "TANU_ALLURE_");
+        environment
+    }
+
+    /// Loads preset environment values (os_platform, os_arch, tanu_allure_version)
+    fn load_default_environment() -> HashMap<String, String> {
+        let mut environment = HashMap::new();
+        environment.insert("os_platform".to_string(), std::env::consts::OS.to_string());
+        environment.insert("os_arch".to_string(), std::env::consts::ARCH.to_string());
+        environment.insert(
+            "tanu_allure_version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
+        environment
+    }
+
+    /// Loads environment variables with a specific prefix into the provided HashMap
+    fn load_env_with_prefix(environment: &mut HashMap<String, String>, prefix: &str) {
+        for (key, value) in std::env::vars() {
+            if let Some(stripped_key) = key.strip_prefix(prefix) {
+                environment.insert(stripped_key.to_string(), value);
+            }
+        }
+    }
+
+    /// Adds a single environment variable to be included in the environment.properties file.
+    ///
+    /// Note: The reporter automatically loads preset values (os_platform, os_arch, tanu_allure_version)
+    /// and TANU_ALLURE_* environment variables. Use this method to add additional custom values.
+    pub fn add_environment(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.environment.insert(key.into(), value.into());
+    }
+
+    /// Sets multiple environment variables at once.
+    ///
+    /// Note: The reporter automatically loads preset values and TANU_ALLURE_* environment variables.
+    /// Use this method to add additional custom values.
+    pub fn set_environment(&mut self, env: HashMap<String, String>) {
+        self.environment.extend(env);
+    }
+
+    /// Loads environment variables from system environment with a specific prefix.
+    /// Variables with the prefix will be added with the prefix stripped.
+    ///
+    /// Note: The reporter automatically loads TANU_ALLURE_* variables on initialization.
+    /// Use this method only if you need to load additional prefixed variables.
+    ///
+    /// # Example
+    ///
+    /// If `MY_APP_VERSION=1.0.0` is set in the environment and you call
+    /// `load_from_env("MY_APP_")`, it will add `VERSION = 1.0.0` to the
+    /// environment.properties file.
+    pub fn load_from_env(&mut self, prefix: &str) {
+        Self::load_env_with_prefix(&mut self.environment, prefix);
     }
 
     /// Loads existing history.json from the history subdirectory
@@ -316,6 +379,7 @@ impl Reporter for AllureReporter {
 
     async fn on_summary(&mut self, _summary: runner::TestSummary) -> eyre::Result<()> {
         self.write_history()?;
+        self.write_environment()?;
         Ok(())
     }
 }
@@ -356,6 +420,37 @@ impl AllureReporter {
         // Write history.json
         let json = serde_json::to_string_pretty(&self.history)?;
         fs::write(history_dir.join("history.json"), json)?;
+
+        Ok(())
+    }
+
+    /// Writes environment.properties file with environment variables
+    fn write_environment(&self) -> eyre::Result<()> {
+        if self.environment.is_empty() {
+            return Ok(());
+        }
+
+        // Ensure results directory exists
+        self.ensure_results_dir()?;
+
+        // Build properties file content
+        let mut lines: Vec<String> = self
+            .environment
+            .iter()
+            .map(|(key, value)| {
+                // Escape special characters for Java properties format
+                let escaped_key = key.replace('\\', "\\\\").replace('=', "\\=").replace(':', "\\:");
+                let escaped_value = value.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r");
+                format!("{} = {}", escaped_key, escaped_value)
+            })
+            .collect();
+
+        // Sort for deterministic output
+        lines.sort();
+
+        // Write environment.properties file
+        let file_path = Path::new(&self.results_dir).join("environment.properties");
+        fs::write(file_path, lines.join("\n"))?;
 
         Ok(())
     }
