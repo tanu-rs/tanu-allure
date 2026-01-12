@@ -155,7 +155,7 @@ impl AllureReporter {
     pub fn with_results_dir(results_dir: impl Into<String>) -> Self {
         let results_dir = results_dir.into();
         let history = Self::load_history(&results_dir);
-        let environment = Self::load_default_environment();
+        let environment = Self::initialize_environment();
 
         AllureReporter {
             results_dir,
@@ -166,26 +166,32 @@ impl AllureReporter {
         }
     }
 
-    /// Loads default environment variables including preset values and TANU_ALLURE_* variables
+    /// Initializes environment variables by loading preset values and TANU_ALLURE_* variables
+    fn initialize_environment() -> HashMap<String, String> {
+        let mut environment = Self::load_default_environment();
+        Self::load_env_with_prefix(&mut environment, "TANU_ALLURE_");
+        environment
+    }
+
+    /// Loads preset environment values (os_platform, os_arch, tanu_allure_version)
     fn load_default_environment() -> HashMap<String, String> {
         let mut environment = HashMap::new();
-
-        // Add preset environment values
         environment.insert("os_platform".to_string(), std::env::consts::OS.to_string());
         environment.insert("os_arch".to_string(), std::env::consts::ARCH.to_string());
         environment.insert(
             "tanu_allure_version".to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         );
+        environment
+    }
 
-        // Load TANU_ALLURE_* environment variables with prefix stripped
+    /// Loads environment variables with a specific prefix into the provided HashMap
+    fn load_env_with_prefix(environment: &mut HashMap<String, String>, prefix: &str) {
         for (key, value) in std::env::vars() {
-            if let Some(stripped_key) = key.strip_prefix("TANU_ALLURE_") {
+            if let Some(stripped_key) = key.strip_prefix(prefix) {
                 environment.insert(stripped_key.to_string(), value);
             }
         }
-
-        environment
     }
 
     /// Adds a single environment variable to be included in the environment.properties file.
@@ -216,11 +222,7 @@ impl AllureReporter {
     /// `load_from_env("MY_APP_")`, it will add `VERSION = 1.0.0` to the
     /// environment.properties file.
     pub fn load_from_env(&mut self, prefix: &str) {
-        for (key, value) in std::env::vars() {
-            if let Some(stripped_key) = key.strip_prefix(prefix) {
-                self.environment.insert(stripped_key.to_string(), value);
-            }
-        }
+        Self::load_env_with_prefix(&mut self.environment, prefix);
     }
 
     /// Loads existing history.json from the history subdirectory
