@@ -285,7 +285,7 @@ impl AllureReporter {
             history_id,
             test_case_id: Default::default(),
             name: test_name.to_string(),
-            full_name: Some(format!("{module}::{test_name}")),
+            full_name: Some(format!("{project}::{module}::{test_name}")),
             description: Default::default(),
             description_html: Default::default(),
             links: Default::default(),
