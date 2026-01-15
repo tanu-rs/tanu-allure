@@ -292,6 +292,17 @@ impl AllureReporter {
             labels: vec![
                 Label::ParentSuite(project.to_string()),
                 Label::Suite(module.to_string()),
+                Label::Host(
+                    hostname::get()
+                        .map(|h| h.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| "unknown".to_string()),
+                ),
+                Label::Thread(
+                    std::thread::current()
+                        .name()
+                        .unwrap_or("main")
+                        .to_string(),
+                ),
             ],
             parameters,
             attachments: Default::default(),

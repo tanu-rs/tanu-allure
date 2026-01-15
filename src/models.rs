@@ -118,6 +118,8 @@ pub enum Label {
     Suite(String),
     SubSuite(String),
     Package(String),
+    Host(String),
+    Thread(String),
     #[serde(untagged)]
     Custom {
         name: String,
