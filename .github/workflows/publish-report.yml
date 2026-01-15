@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tanu integration suite and capture Allure results
         working-directory: tanu
-        run: cargo run -p tanu-integration-tests -- test --reporters allure,list
+        run: cargo run -p tanu-integration-tests -- test --reporters allure,list --concurrency 10
         continue-on-error: true
         env:
           TANU_CONFIG: ../tanu.toml
