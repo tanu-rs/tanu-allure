@@ -297,12 +297,7 @@ impl AllureReporter {
                         .map(|h| h.to_string_lossy().into_owned())
                         .unwrap_or_else(|_| "unknown".to_string()),
                 ),
-                Label::Thread(
-                    std::thread::current()
-                        .name()
-                        .unwrap_or("main")
-                        .to_string(),
-                ),
+                Label::Thread(test.worker_id.to_string()),
             ],
             parameters,
             attachments: Default::default(),
