@@ -8,8 +8,8 @@ use tanu_core::{
 };
 
 use crate::models::{
-    generate_history_id, History, HistoryItem, HistoryTime, Label, Parameter, ParameterMode,
-    Stage, Status, StatusDetails, Step, TestResult, MAX_HISTORY_ITEMS,
+    generate_history_id, History, HistoryItem, HistoryTime, Label, Parameter, ParameterMode, Stage,
+    Status, StatusDetails, Step, TestResult, MAX_HISTORY_ITEMS,
 };
 
 fn to_status(status: http::StatusCode) -> Status {
@@ -111,7 +111,7 @@ impl From<&Event> for Step {
                     stop: Some(now),
                     steps: vec![],
                 }
-            },
+            }
             Event::Http(log) => Step {
                 name: log.request.url.to_string(),
                 parameters: {
@@ -328,18 +328,20 @@ impl Reporter for AllureReporter {
         Ok(())
     }
 
-    async fn on_http_call(
+    async fn on_call(
         &mut self,
         project_name: String,
         module_name: String,
         test_name: String,
-        log: Box<http::Log>,
+        log: runner::CallLog,
     ) -> eyre::Result<()> {
-        self.buffer
-            .entry((project_name, module_name, test_name))
-            .or_default()
-            .events
-            .push(Event::Http(log));
+        if let runner::CallLog::Http(http_log) = log {
+            self.buffer
+                .entry((project_name, module_name, test_name))
+                .or_default()
+                .events
+                .push(Event::Http(http_log));
+        }
         Ok(())
     }
 
@@ -445,8 +447,14 @@ impl AllureReporter {
             .iter()
             .map(|(key, value)| {
                 // Escape special characters for Java properties format
-                let escaped_key = key.replace('\\', "\\\\").replace('=', "\\=").replace(':', "\\:");
-                let escaped_value = value.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r");
+                let escaped_key = key
+                    .replace('\\', "\\\\")
+                    .replace('=', "\\=")
+                    .replace(':', "\\:");
+                let escaped_value = value
+                    .replace('\\', "\\\\")
+                    .replace('\n', "\\n")
+                    .replace('\r', "\\r");
                 format!("{} = {}", escaped_key, escaped_value)
             })
             .collect();
