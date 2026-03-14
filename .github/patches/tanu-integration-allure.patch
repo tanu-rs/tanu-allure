@@ -6,7 +6,7 @@ diff --git a/Cargo.toml b/Cargo.toml
    "examples",
  ]
  resolver = "2"
- 
+
 +[patch.crates-io]
 +tanu-core = { path = "tanu-core" }
 +
@@ -17,7 +17,7 @@ diff --git a/tanu-integration-tests/Cargo.toml b/tanu-integration-tests/Cargo.to
 @@ -20,6 +20,7 @@ prost = "0.14.1"
  serde = { workspace = true }
  serde_json = "1"
- tanu = { path = "../tanu", features = ["json", "cookies"] }
+ tanu = { path = "../tanu", features = ["json", "cookies", "grpc"] }
 +tanu-allure = { path = "../.." }
  testcontainers = "0.24"
  tokio = { workspace = true }
@@ -25,7 +25,7 @@ diff --git a/tanu-integration-tests/Cargo.toml b/tanu-integration-tests/Cargo.to
 diff --git a/tanu-integration-tests/src/main.rs b/tanu-integration-tests/src/main.rs
 --- a/tanu-integration-tests/src/main.rs
 +++ b/tanu-integration-tests/src/main.rs
-@@ -65,8 +65,12 @@ pub async fn get_httpbin() -> eyre::Result<Arc<HttpBin>> {
+@@ -86,8 +86,12 @@ pub async fn get_base_url() -> eyre::Result<String> {
  #[tanu::main]
  #[tokio::main]
  async fn main() -> eyre::Result<()> {
