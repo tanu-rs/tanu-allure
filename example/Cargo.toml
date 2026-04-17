@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tanu-allure = { path = ".." }
-tanu = { version = ">=0.17.0", features = ["grpc", "json"] }
+tanu-allure = { path = "..", default-features = false }
+tanu = { version = ">=0.20.1", default-features = false, features = ["grpc", "json"] }
 tokio = { version = "1", features = ["full"] }
+
+[features]
+default = ["native-tls"]
+native-tls = ["tanu/native-tls", "tanu-allure/native-tls"]
+rustls-tls-webpki-roots = ["tanu/rustls-tls-webpki-roots", "tanu-allure/rustls-tls-webpki-roots"]
+rustls-tls-native-roots = ["tanu/rustls-tls-native-roots", "tanu-allure/rustls-tls-native-roots"]
