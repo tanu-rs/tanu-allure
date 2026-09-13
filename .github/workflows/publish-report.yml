@@ -5,6 +5,7 @@ on:
     branches: [main]
   schedule:
     - cron: '0 0 * * 0'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,14 +23,29 @@ jobs:
       - name: Checkout tanu-allure
         uses: actions/checkout@v5
 
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Build against the latest tanu release compatible with the tanu-core
+      # requirement in Cargo.toml, so changes on tanu main can't break the report.
+      - name: Resolve tanu release tag
+        id: tanu
+        run: |
+          req=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "tanu-allure") | .dependencies[] | select(.name == "tanu-core" and .kind == null) | .req')
+          minor=$(echo "$req" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+).*/\1/')
+          tag=$(git ls-remote --tags --refs https://github.com/tanu-rs/tanu "v${minor}.*" \
+            | sed 's|.*refs/tags/||' | sort -V | tail -n 1)
+          test -n "$tag" || { echo "::error::No tanu release tag found for tanu-core requirement '${req}'"; exit 1; }
+          echo "tanu-core requirement ${req} -> tanu ${tag}"
+          echo "ref=${tag}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout tanu
         uses: actions/checkout@v5
         with:
           repository: tanu-rs/tanu
+          ref: ${{ steps.tanu.outputs.ref }}
           path: tanu
-
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Set up Java runtime for Allure CLI
         uses: actions/setup-java@v5
@@ -58,9 +74,19 @@ jobs:
           done
           ls -la tanu/allure-results/history/ || true
 
-      - name: Patch tanu integration runner to install Allure reporter
+      - name: Install Allure reporter into tanu integration runner
         working-directory: tanu
-        run: git apply ../.github/patches/tanu-integration-allure.patch
+        run: |
+          cargo add --package tanu-integration-tests --path .. tanu-allure
+          printf '\n[patch.crates-io]\ntanu-core = { path = "tanu-core" }\n' >> Cargo.toml
+          sed -i 's|^\(\s*\)let app = tanu::App::new();|\1let mut app = tanu::App::new();\n\1app.install_reporter("allure", tanu_allure::AllureReporter::with_results_dir("allure-results"));|' \
+            tanu-integration-tests/src/main.rs
+          grep -q 'tanu_allure::AllureReporter' tanu-integration-tests/src/main.rs \
+            || { echo "::error::Could not install Allure reporter into tanu-integration-tests/src/main.rs"; exit 1; }
+
+      - name: Build tanu integration suite
+        working-directory: tanu
+        run: cargo build -p tanu-integration-tests
 
       - name: Run tanu integration suite and capture Allure results
         working-directory: tanu
