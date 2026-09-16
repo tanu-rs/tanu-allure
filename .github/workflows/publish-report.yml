@@ -33,8 +33,14 @@ jobs:
         run: |
           req=$(cargo metadata --no-deps --format-version 1 \
             | jq -r '.packages[] | select(.name == "tanu-allure") | .dependencies[] | select(.name == "tanu-core" and .kind == null) | .req')
-          minor=$(echo "$req" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+).*/\1/')
-          tag=$(git ls-remote --tags --refs https://github.com/tanu-rs/tanu "v${minor}.*" \
+          # Caret semantics: >=1.0 is compatible within the major, 0.x within the minor.
+          major=$(echo "$req" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
+          if [ "$major" = "0" ]; then
+            prefix=$(echo "$req" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+).*/\1/')
+          else
+            prefix="$major"
+          fi
+          tag=$(git ls-remote --tags --refs https://github.com/tanu-rs/tanu "v${prefix}.*" \
             | sed 's|.*refs/tags/||' | sort -V | tail -n 1)
           test -n "$tag" || { echo "::error::No tanu release tag found for tanu-core requirement '${req}'"; exit 1; }
           echo "tanu-core requirement ${req} -> tanu ${tag}"

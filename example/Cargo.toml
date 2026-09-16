@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tanu-allure = { path = "..", default-features = false }
-tanu = { version = ">=0.20.1", default-features = false, features = ["grpc", "json"] }
+tanu = { version = "1", default-features = false, features = ["grpc", "json"] }
 tokio = { version = "1", features = ["full"] }
 
 [features]
