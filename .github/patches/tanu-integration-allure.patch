@@ -1,32 +1,34 @@
 diff --git a/Cargo.toml b/Cargo.toml
+index 634f74b..f0834b5 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -7,6 +7,9 @@ members = [
-   "tanu-integration-tests",
-   "examples",
+@@ -9,6 +9,9 @@ members = [
  ]
  resolver = "2"
-
+ 
 +[patch.crates-io]
 +tanu-core = { path = "tanu-core" }
 +
  [workspace.dependencies]
+ anyhow = { version = "1", features = ["backtrace"] }
+ async-trait = "0.1"
 diff --git a/tanu-integration-tests/Cargo.toml b/tanu-integration-tests/Cargo.toml
+index 438fd95..a533f27 100644
 --- a/tanu-integration-tests/Cargo.toml
 +++ b/tanu-integration-tests/Cargo.toml
-@@ -20,6 +20,7 @@ prost = "0.14.1"
+@@ -30,6 +30,7 @@ prost = "0.14.1"
  serde = { workspace = true }
  serde_json = "1"
- tanu = { path = "../tanu", features = ["json", "cookies", "grpc"] }
+ tanu = { path = "../tanu", default-features = false, features = ["json", "cookies", "grpc", "graphql"] }
 +tanu-allure = { path = "../.." }
- testcontainers = "0.24"
+ testcontainers = "0.27"
  tokio = { workspace = true }
  tokio-stream = { version = "0.1", features = ["net"] }
 diff --git a/tanu-integration-tests/src/main.rs b/tanu-integration-tests/src/main.rs
+index 2618728..129123f 100644
 --- a/tanu-integration-tests/src/main.rs
 +++ b/tanu-integration-tests/src/main.rs
-@@ -86,8 +86,12 @@ pub async fn get_base_url() -> eyre::Result<String> {
- #[tanu::main]
+@@ -89,7 +89,11 @@ pub async fn get_base_url() -> eyre::Result<String> {
  #[tokio::main]
  async fn main() -> eyre::Result<()> {
      let runner = run();
