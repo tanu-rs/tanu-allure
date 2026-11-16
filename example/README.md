@@ -46,3 +46,27 @@ docker run -v$PWD/allure-report:/app/allure-report \
 ```
 
 After running this command, open your web browser and navigate to [http://localhost:4040](http://localhost:4040) to view the generated report.
+
+## Merging Reports from Multiple Runs
+
+Results from separate runs (different environments, CI jobs, or machines) can be merged
+into a single report. Each target is a tanu project in `tanu.toml` (`docker` and
+`httpbin_org`), so every test gets a distinct `historyId` and its own parent suite.
+
+```bash
+# Local httpbin for the "docker" project
+docker run -d --rm --name httpbin -p 8090:80 kennethreitz/httpbin
+
+# Run each project into its own results directory
+ALLURE_RESULTS_DIR=results-docker      cargo run -- test --projects docker      --reporters allure,list
+ALLURE_RESULTS_DIR=results-httpbin-org cargo run -- test --projects httpbin_org --reporters allure,list
+
+# Merge into one report
+allure generate "results-*" -o allure-report-merged                                # Allure 3 (glob pattern)
+allure generate results-docker results-httpbin-org --clean -o allure-report-merged # Allure 2
+
+docker stop httpbin
+```
+
+The runs don't have to happen on the same machine: upload each results directory as a CI
+artifact and run `allure generate` on all of them in a final job.
