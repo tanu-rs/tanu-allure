@@ -4,3 +4,5 @@ allure-report
 allure-reports
 allure-results
 .claude/settings.local.json
+results-*
+allure-report-*
