@@ -1,7 +1,9 @@
 [[projects]]
 name = "docker"
 base_url = "http://localhost:8090"
+retry.count = 1
 
 [[projects]]
 name = "httpbin_org"
 base_url = "https://httpbin.org"
+retry.count = 1
