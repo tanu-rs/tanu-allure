@@ -12,7 +12,7 @@ Add the crate to your workspace alongside `tanu`:
 
 ```toml
 [dependencies]
-tanu-allure = "1"
+tanu-allure = "1.1"
 ```
 
 ## Usage
@@ -38,6 +38,22 @@ async fn main() -> tanu::eyre::Result<()> {
 Once the plugin is installed, select it when invoking your suite (for example `cargo run test --reporters allure,list`) so `tanu` includes the Allure reporter alongside any other reporters you use.
 
 `AllureReporter::new()` uses `allure-results/` in the current working directory; `with_results_dir` lets you target another location (for example, inside your CI artifacts directory). Each completed test produces a `*-result.json` file containing the full execution trace, including checks and HTTP calls captured by `tanu`.
+
+## What's in the report
+
+- **Steps** for every `check!` and HTTP call, in order. HTTP steps are named like
+  `POST /post → 200 OK`, list request and response headers as parameters (sensitive ones such as
+  `Authorization` and `Cookie` are masked), and attach the request and response bodies. JSON bodies
+  are pretty-printed.
+- **Retries**: when a test is retried (`retry.count` in `tanu.toml`), each failed attempt is
+  reported separately and shown under the test's Retries tab.
+- **Descriptions** from the test function's doc comment (`///`).
+- **Categories** (`categories.json`): failures are grouped into assertion failures, request
+  errors and panics. Provide your own `categories.json` in the results directory to override
+  them. Allure 2 shows these; Allure 3.0.1's classic report doesn't apply message patterns yet.
+- **Executor** (`executor.json`): on GitHub Actions the report links back to the workflow run.
+- **Environment** (`environment.properties`): OS, architecture, the tanu-allure version, and any
+  `TANU_ALLURE_*` environment variables.
 
 ## Generating a report
 

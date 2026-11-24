@@ -56,6 +56,9 @@ allure generate allure-results --clean -o allure-report
 - History ID uses SHA-256 of `project::module::test_name` + non-excluded parameters
 - Test status mapping: `Ok` → Passed, `ErrorReturned` → Failed, `Panicked` → Broken
 - History retains up to 20 runs per test (`MAX_HISTORY_ITEMS`)
+- HTTP steps are always `Passed` once a response arrives (checks decide the outcome); request/response bodies are written as `{uuid}-attachment.{ext}` files
+- `on_retry` writes each failed attempt as its own result (same `historyId`); only the final attempt from `on_end` goes into `history.json`
+- `on_summary` also writes `categories.json` (unless one already exists) and, on GitHub Actions, `executor.json`
 
 ## Allure JSON Schema Reference
 

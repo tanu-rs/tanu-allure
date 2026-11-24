@@ -254,6 +254,45 @@ pub struct Step {
     pub steps: Vec<Step>,
 }
 
+/// Represents a category in `categories.json`, used to group failed tests in the report.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Category {
+    /// The name of the category.
+    pub name: String,
+    /// Test statuses this category matches.
+    #[serde(default)]
+    pub matched_statuses: Vec<Status>,
+    /// A regular expression the status message must match.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_regex: Option<String>,
+}
+
+/// Represents `executor.json`, describing the CI system that produced the results.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Executor {
+    /// The name of the executor, e.g. "GitHub Actions".
+    pub name: String,
+    /// The type of the executor, which selects its icon in the report.
+    pub r#type: String,
+    /// A human-readable name of the build.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_name: Option<String>,
+    /// The build number, used to order builds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_order: Option<u64>,
+    /// The URL of the build.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_url: Option<String>,
+    /// The name of the report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_name: Option<String>,
+    /// The URL of the published report.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_url: Option<String>,
+}
+
 // ============================================================================
 // History types for tracking test execution history across runs
 // ============================================================================
