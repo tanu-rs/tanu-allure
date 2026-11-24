@@ -1,0 +1,6 @@
+{
+  "name": "tanu-allure example",
+  "output": "./allure-report-merged",
+  "historyPath": "./allure-history.jsonl",
+  "historyLimit": 20
+}

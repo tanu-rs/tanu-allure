@@ -6,3 +6,4 @@ allure-results
 .claude/settings.local.json
 results-*
 allure-report-*
+allure-history.jsonl

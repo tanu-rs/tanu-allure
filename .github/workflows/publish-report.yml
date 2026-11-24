@@ -65,7 +65,7 @@ jobs:
           node-version: 'latest'
 
       - name: Clean previous Allure artifacts
-        run: rm -rf tanu/allure-results allure-report
+        run: rm -rf tanu/allure-results allure-report allure-history.jsonl
 
       - name: Download previous Allure history
         run: |
@@ -79,6 +79,9 @@ jobs:
               -o "tanu/allure-results/history/${file}" 2>/dev/null || true
           done
           ls -la tanu/allure-results/history/ || true
+          # Allure v3 keeps history in a single JSONL file published next to the v3 report
+          curl -sSfL "https://tanu-rs.github.io/tanu-allure/v3/history.jsonl" \
+            -o allure-history.jsonl || echo "No previous v3 history found"
 
       - name: Install Allure reporter into tanu integration runner
         working-directory: tanu
@@ -120,7 +123,9 @@ jobs:
       - name: Generate Allure v3 report
         run: |
           npx allure --version
-          npx allure awesome --single-file tanu/allure-results -o allure-report/v3
+          npx allure awesome --single-file --history-path allure-history.jsonl tanu/allure-results -o allure-report/v3
+          # Publish the history so the next run can append to it
+          cp allure-history.jsonl allure-report/v3/history.jsonl
 
       - name: Create root index page
         run: |
